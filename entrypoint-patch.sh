@@ -23,8 +23,9 @@ node -e "
     c.channels = c.channels || {};
     c.channels.telegram = c.channels.telegram || {};
     c.channels.telegram.dmPolicy = 'open';
+    c.channels.telegram.allowFrom = ['*'];
     fs.writeFileSync(p, JSON.stringify(c, null, 2));
-    console.log('[clawoop] PATCHED dmPolicy to open');
+    console.log('[clawoop] PATCHED dmPolicy=open + allowFrom=[*]');
   } catch(e) {
     console.error('[clawoop] PATCH FAILED:', e.message);
   }
