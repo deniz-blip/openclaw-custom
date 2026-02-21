@@ -1,39 +1,29 @@
 #!/bin/sh
 set -e
 
-echo "[clawoop] Starting gateway phase 1 (config generation)..."
+echo "[clawoop] === Custom OpenClaw Entrypoint ==="
+echo "[clawoop] Using openclaw CLI to configure dmPolicy=open"
 
-# Phase 1: Start gateway in background — it generates openclaw.json (Config overwrite)
-node openclaw.mjs gateway --allow-unconfigured &
-GW_PID=$!
+# Step 1: Run onboard to initialize telegram channel config
+echo "[clawoop] Step 1: Running openclaw onboard..."
+node openclaw.mjs onboard --channel=telegram --token="$TELEGRAM_BOT_TOKEN" 2>&1 || true
 
-# Wait for config to be generated
-echo "[clawoop] Waiting 15s for config generation..."
-sleep 15
+# Step 2: Set the FULL telegram channel config with dmPolicy=open via CLI
+echo "[clawoop] Step 2: Setting channels.telegram config via CLI..."
+node openclaw.mjs config set --json channels.telegram "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$TELEGRAM_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 
-# Phase 2: Patch dmPolicy to open
-CONFIG_FILE="$HOME/.openclaw/openclaw.json"
-echo "[clawoop] Patching dmPolicy in $CONFIG_FILE..."
+# Step 3: Also set the AI provider config
+echo "[clawoop] Step 3: Setting AI provider config..."
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+  node openclaw.mjs config set ai.provider "${AI_PROVIDER:-anthropic}" 2>&1 || true
+  node openclaw.mjs config set ai.model "${AI_MODEL:-claude-opus-4-20250514}" 2>&1 || true
+  node openclaw.mjs config set --json ai.credentials "{\"anthropicApiKey\":\"$ANTHROPIC_API_KEY\"}" 2>&1 || true
+fi
 
-node -e "
-  var fs = require('fs');
-  var p = process.env.HOME + '/.openclaw/openclaw.json';
-  try {
-    var c = JSON.parse(fs.readFileSync(p, 'utf8'));
-    c.channels = c.channels || {};
-    c.channels.telegram = c.channels.telegram || {};
-    c.channels.telegram.dmPolicy = 'open';
-    c.channels.telegram.allowFrom = ['*'];
-    fs.writeFileSync(p, JSON.stringify(c, null, 2));
-    console.log('[clawoop] PATCHED dmPolicy=open + allowFrom=[*]');
-  } catch(e) {
-    console.error('[clawoop] PATCH FAILED:', e.message);
-  }
-"
+# Step 4: Run openclaw doctor --fix to apply any remaining fixes
+echo "[clawoop] Step 4: Running doctor --fix..."
+node openclaw.mjs doctor --fix 2>&1 || true
 
-# Phase 3: Kill phase 1 gateway and restart with patched config
-echo "[clawoop] Restarting gateway with patched config..."
-kill $GW_PID 2>/dev/null || true
-sleep 3
-
+# Step 5: Start the gateway
+echo "[clawoop] Step 5: Starting gateway..."
 exec node openclaw.mjs gateway --allow-unconfigured
