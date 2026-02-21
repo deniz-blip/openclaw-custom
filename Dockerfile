@@ -1,12 +1,7 @@
 FROM ghcr.io/openclaw/openclaw:latest
 
-# Switch to root to install our custom entrypoint
-USER root
-COPY entrypoint-patch.sh /usr/local/bin/entrypoint-patch.sh
-RUN chmod +x /usr/local/bin/entrypoint-patch.sh
-
-# Switch back to the original non-root user
-USER node
+# Copy entrypoint to home dir (writable by node user) with exec permission
+COPY --chmod=755 entrypoint-patch.sh /home/node/entrypoint-patch.sh
 
 # Override the entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint-patch.sh"]
+ENTRYPOINT ["/home/node/entrypoint-patch.sh"]

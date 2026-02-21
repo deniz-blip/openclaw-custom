@@ -1,40 +1,38 @@
 #!/bin/sh
 set -e
 
-# Run the original Docker entrypoint if it exists (generates openclaw.json)
-if [ -f /docker-entrypoint.sh ]; then
-  echo "[patch] Running original entrypoint..."
-  # Source it to get config generated (don't exec, we need control after)
-  /docker-entrypoint.sh true 2>/dev/null || true
-fi
+echo "[clawoop] Starting gateway phase 1 (config generation)..."
 
-# Wait briefly for config to be generated
-sleep 2
+# Phase 1: Start gateway in background — it generates openclaw.json (Config overwrite)
+node openclaw.mjs gateway --allow-unconfigured &
+GW_PID=$!
 
-# Patch the openclaw.json to set dmPolicy to open
+# Wait for config to be generated
+echo "[clawoop] Waiting 15s for config generation..."
+sleep 15
+
+# Phase 2: Patch dmPolicy to open
 CONFIG_FILE="$HOME/.openclaw/openclaw.json"
-echo "[patch] Looking for config at $CONFIG_FILE"
+echo "[clawoop] Patching dmPolicy in $CONFIG_FILE..."
 
-if [ -f "$CONFIG_FILE" ]; then
-  echo "[patch] Config found, patching dmPolicy..."
-  node -e "
-    var fs = require('fs');
-    var p = '$CONFIG_FILE';
-    try {
-      var c = JSON.parse(fs.readFileSync(p, 'utf8'));
-      c.channels = c.channels || {};
-      c.channels.telegram = c.channels.telegram || {};
-      c.channels.telegram.dmPolicy = 'open';
-      fs.writeFileSync(p, JSON.stringify(c, null, 2));
-      console.log('[patch] dmPolicy set to open successfully');
-    } catch(e) {
-      console.error('[patch] Failed:', e.message);
-    }
-  "
-else
-  echo "[patch] Config not found yet, will be created by gateway"
-fi
+node -e "
+  var fs = require('fs');
+  var p = process.env.HOME + '/.openclaw/openclaw.json';
+  try {
+    var c = JSON.parse(fs.readFileSync(p, 'utf8'));
+    c.channels = c.channels || {};
+    c.channels.telegram = c.channels.telegram || {};
+    c.channels.telegram.dmPolicy = 'open';
+    fs.writeFileSync(p, JSON.stringify(c, null, 2));
+    console.log('[clawoop] PATCHED dmPolicy to open');
+  } catch(e) {
+    console.error('[clawoop] PATCH FAILED:', e.message);
+  }
+"
 
-# Start the gateway
-echo "[patch] Starting OpenClaw gateway..."
+# Phase 3: Kill phase 1 gateway and restart with patched config
+echo "[clawoop] Restarting gateway with patched config..."
+kill $GW_PID 2>/dev/null || true
+sleep 3
+
 exec node openclaw.mjs gateway --allow-unconfigured
