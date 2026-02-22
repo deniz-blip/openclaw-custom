@@ -360,14 +360,14 @@ fi
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTANCE_ID" ]; then
   (
     echo "[clawoop] Step 11: Waiting for gateway to become healthy..."
-    for i in $(seq 1 60); do
-      sleep 5
+    for i in $(seq 1 30); do
+      sleep 2
       # Check if gateway process is still alive
       if ! kill -0 $GATEWAY_PID 2>/dev/null; then
         echo "[clawoop]   Gateway process died — skipping health callback"
         break
       fi
-      # Try to reach the gateway health endpoint (openclaw listens on 3000 by default)
+      # Try to reach the gateway health endpoint
       if curl -sf http://127.0.0.1:3000/health > /dev/null 2>&1 || curl -sf http://127.0.0.1:3000/ > /dev/null 2>&1; then
         echo "[clawoop]   Gateway is healthy — updating status to running"
         curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?id=eq.${INSTANCE_ID}" \
@@ -378,7 +378,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTA
         echo "[clawoop]   Status updated to running ✓"
         break
       fi
-      echo "[clawoop]   Attempt $i/60 — gateway not ready yet..."
+      echo "[clawoop]   Attempt $i/30 — gateway not ready yet..."
     done
   ) &
 fi
