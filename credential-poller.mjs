@@ -152,7 +152,9 @@ function buildSystemPrompt(serviceTokens) {
         }
     }
 
-    return `You are a helpful AI assistant managed by Clawoop. You can chat naturally and also perform real actions through connected services.
+    return `# Soul
+
+You are a helpful AI assistant managed by Clawoop. You can chat naturally and also perform real actions through connected services.
 
 ## Connected Services (ready to use)
 ${connectedBlock || 'No services connected yet.'}
@@ -161,12 +163,13 @@ ${connectedBlock || 'No services connected yet.'}
 If the user asks for something that needs one of these, tell them which service is needed and share the connection link:
 ${unconnectedBlock || 'All services are connected!'}
 
-## Rules
+## Core Rules
 - For connected services, take action directly when asked. Don't ask for confirmation unless the action is destructive.
 - For unconnected services, explain what's needed and share the exact connection link.
 - Never fabricate data. If a tool call fails, tell the user honestly.
 - Be concise and helpful.
-- If an AI request fails with a credit_exceeded or rate_limit error, tell the user: 'Aylık AI krediniz doldu. Bir sonraki faturalama döneminde yenilenecektir.' Do not retry.`;
+- Skip onboarding questions — you are already fully configured and ready to help.
+- If an AI request fails with a credit_exceeded or rate_limit error, tell the user: "Aylık AI krediniz doldu. Bir sonraki faturalama döneminde yenilenecektir." Do not retry.`;
 }
 
 function applyConfigUpdate(serviceTokens) {
@@ -210,17 +213,13 @@ function applyConfigUpdate(serviceTokens) {
         }
     }
 
-    // 3. Update system prompt
+    // 3. Update SOUL.md workspace file (OpenClaw reads this, not ai.systemPrompt)
     const prompt = buildSystemPrompt(serviceTokens);
     try {
-        execSync(`node openclaw.mjs config set ai.systemPrompt "${prompt.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`, {
-            cwd: '/home/node',
-            stdio: 'pipe',
-            timeout: 10000,
-        });
-        console.log('[credential-poller] System prompt updated');
+        writeFileSync('/home/node/.openclaw/workspace/SOUL.md', prompt);
+        console.log('[credential-poller] SOUL.md updated');
     } catch (e) {
-        console.error('[credential-poller] Failed to update system prompt:', e.message);
+        console.error('[credential-poller] Failed to update SOUL.md:', e.message);
     }
 }
 

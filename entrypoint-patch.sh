@@ -146,91 +146,133 @@ if [ -n "$TRELLO_API_KEY" ]; then
   node openclaw.mjs config set --json tools.trello '{"enabled":true}' 2>&1 || true
 fi
 
-# Step 5b: Run openclaw doctor --fix BEFORE prompt injection (so it doesn't reset our config)
+# Step 5b: Run openclaw doctor --fix
 echo "[clawoop] Step 5b: Running doctor --fix..."
 node openclaw.mjs doctor --fix 2>&1 || true
 
-# Step 6: Build and inject JIT system prompt
-echo "[clawoop] Step 6: Configuring JIT system prompt..."
+# Step 6: Write OpenClaw workspace files (IDENTITY.md, SOUL.md, TOOLS.md)
+# OpenClaw builds its system prompt from these files — NOT from ai.systemPrompt
+echo "[clawoop] Step 6: Writing workspace files..."
+
+WORKSPACE="/home/node/.openclaw/workspace"
+mkdir -p "$WORKSPACE"
 
 # Debug: log which env vars are present
 echo "[clawoop]   ENV CHECK: GOG_REFRESH_TOKEN=${GOG_REFRESH_TOKEN:+SET} NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET}"
 
-# Build list of connected services with capabilities
-CONNECTED_BLOCK=""
-[ -n "$GOG_REFRESH_TOKEN" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+# 6a: IDENTITY.md — defines who the bot is
+cat > "$WORKSPACE/IDENTITY.md" << 'EOF'
+name: Clawoop Assistant
+type: AI assistant
+vibe: helpful, practical, proactive
+emoji: 🤖
+EOF
+echo "[clawoop]   IDENTITY.md written ✓"
+
+# 6b: Build connected/unconnected service lists for SOUL.md
+CONNECTED_SERVICES=""
+UNCONNECTED_SERVICES=""
+
+if [ -n "$GOG_REFRESH_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
 - **Google Workspace**: Calendar (list/create/update events), Gmail (read/send emails), Drive (list/search files). Use the gog tool."
-[ -n "$NOTION_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **Notion**: Create pages, query databases, search workspace. Use the notion tool."
-[ -n "$GITHUB_TOKEN" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **GitHub**: List repos, create/list issues, manage PRs. Use the github tool."
-[ -n "$SPOTIFY_CLIENT_ID" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **Spotify**: Control playback, search music, manage playlists. Use curl/fetch with the Spotify Web API and the stored credentials."
-[ -n "$TRELLO_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **Trello**: List boards, create/move cards, manage lists. Use the trello tool."
-[ -n "$X_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **Twitter/X**: Post tweets, search, manage timeline. Use curl with the X API v2 and the stored credentials."
-[ -n "$HA_URL" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
-- **Home Assistant**: Control lights, switches, climate, and other smart home devices. Use curl with the HA REST API at ${HA_URL}."
-
-# Build list of unconnected services
-UNCONNECTED_BLOCK=""
-[ -z "$GOG_REFRESH_TOKEN" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Google Workspace → https://clawoop.com?connect=google"
-[ -z "$NOTION_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$NOTION_API_KEY" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Notion**: Create pages, query databases, search workspace. Use the notion tool."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Notion → https://clawoop.com?connect=notion"
-[ -z "$GITHUB_TOKEN" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$GITHUB_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **GitHub**: List repos, create/list issues, manage PRs. Use the github tool."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - GitHub → https://clawoop.com?connect=github"
-[ -z "$SPOTIFY_CLIENT_ID" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$SPOTIFY_CLIENT_ID" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Spotify**: Control playback, search music, manage playlists. Use curl with Spotify Web API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Spotify → https://clawoop.com?connect=spotify"
-[ -z "$TRELLO_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$TRELLO_API_KEY" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Trello**: List boards, create/move cards, manage lists. Use the trello tool."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Trello → https://clawoop.com?connect=trello"
-[ -z "$X_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$X_API_KEY" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Twitter/X**: Post tweets, search, manage timeline. Use curl with X API v2."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Twitter/X → https://clawoop.com?connect=twitter"
-[ -z "$HA_URL" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+fi
+
+if [ -n "$HA_URL" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Home Assistant**: Control smart home devices. Use curl with HA REST API at ${HA_URL}."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Home Assistant → https://clawoop.com?connect=homeassistant"
+fi
 
-# Write system prompt to a temp file to avoid escaping issues
-cat > /tmp/clawoop-system-prompt.txt << 'PROMPT_DELIM'
+# 6c: SOUL.md — core personality, rules, and integration awareness
+cat > "$WORKSPACE/SOUL.md" << SOUL_EOF
+# Soul
+
 You are a helpful AI assistant managed by Clawoop. You can chat naturally and also perform real actions through connected services.
-PROMPT_DELIM
-
-# Append the dynamic parts
-cat >> /tmp/clawoop-system-prompt.txt << PROMPT_DYNAMIC
 
 ## Connected Services (ready to use)
-${CONNECTED_BLOCK:-No services connected yet.}
+${CONNECTED_SERVICES:-No services connected yet.}
 
 ## Services Not Yet Connected
 If the user asks for something that needs one of these, tell them which service is needed and share the connection link:
-${UNCONNECTED_BLOCK:-All services are connected!}
+${UNCONNECTED_SERVICES:-All services are connected!}
 
-## Rules
+## Core Rules
 - For connected services, take action directly when asked. Don't ask for confirmation unless the action is destructive.
 - For unconnected services, explain what's needed and share the exact connection link.
 - Never fabricate data. If a tool call fails, tell the user honestly.
 - Be concise and helpful.
-- If an AI request fails with a credit_exceeded or rate_limit error, tell the user: 'Aylık AI krediniz doldu. Bir sonraki faturalama döneminde yenilenecektir.' Do not retry.
-PROMPT_DYNAMIC
+- Skip onboarding questions — you are already fully configured and ready to help.
+- If an AI request fails with a credit_exceeded or rate_limit error, tell the user: "Aylık AI krediniz doldu. Bir sonraki faturalama döneminde yenilenecektir." Do not retry.
+SOUL_EOF
+echo "[clawoop]   SOUL.md written ✓"
 
-SYSTEM_PROMPT=$(cat /tmp/clawoop-system-prompt.txt)
+# 6d: USER.md — basic user context
+cat > "$WORKSPACE/USER.md" << 'EOF'
+# User
 
-# Inject into OpenClaw config
-echo "[clawoop]   Injecting system prompt (${#SYSTEM_PROMPT} chars)..."
-node openclaw.mjs config set ai.systemPrompt "$SYSTEM_PROMPT" 2>&1
-PROMPT_RESULT=$?
-echo "[clawoop]   System prompt injection exit code: $PROMPT_RESULT"
+The user is a Clawoop subscriber who has deployed this AI assistant. Help them with any task — from scheduling meetings to managing files. Be proactive and practical. Respond in whichever language the user writes in.
+EOF
+echo "[clawoop]   USER.md written ✓"
 
-# Step 6b: Remove BOOTSTRAP.md so our system prompt takes full control
-echo "[clawoop] Step 6b: Removing BOOTSTRAP.md..."
+# 6e: Remove BOOTSTRAP.md — prevents onboarding questions
+echo "[clawoop] Step 6e: Removing BOOTSTRAP.md..."
+rm -f "$WORKSPACE/BOOTSTRAP.md" 2>/dev/null || true
 rm -f /home/node/.openclaw/BOOTSTRAP.md 2>/dev/null || true
 rm -f /home/node/BOOTSTRAP.md 2>/dev/null || true
 find /home/node -name "BOOTSTRAP.md" -delete 2>/dev/null || true
 echo "[clawoop]   BOOTSTRAP.md removed ✓"
 
-# Verify: dump what config looks like now
-echo "[clawoop]   Verifying config..."
-node openclaw.mjs config get ai.systemPrompt 2>&1 | head -5 || true
+# 6f: Verify workspace files
+echo "[clawoop]   Workspace files:"
+ls -la "$WORKSPACE/"*.md 2>/dev/null || echo "   (no .md files found)"
+echo "[clawoop]   SOUL.md preview:"
+head -5 "$WORKSPACE/SOUL.md" 2>/dev/null || true
 
 # Step 8: Start credit proxy (if Supabase creds available)
 echo "[clawoop] Step 8: Starting credit proxy..."
