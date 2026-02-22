@@ -23,7 +23,7 @@ if [ "$PLATFORM" = "slack" ]; then
 elif [ "$PLATFORM" = "discord" ]; then
   node openclaw.mjs onboard --channel=discord --token="$DISCORD_BOT_TOKEN" 2>&1 || true
 elif [ "$PLATFORM" = "whatsapp" ]; then
-  node openclaw.mjs onboard --channel=whatsapp --token="$WHATSAPP_AUTH_TOKEN" 2>&1 || true
+  echo "[clawoop]   WhatsApp uses QR pairing — skipping onboard, will login during gateway start"
 else
   node openclaw.mjs onboard --channel=telegram --token="$TELEGRAM_BOT_TOKEN" 2>&1 || true
 fi
@@ -35,7 +35,24 @@ if [ "$PLATFORM" = "slack" ]; then
 elif [ "$PLATFORM" = "discord" ]; then
   node openclaw.mjs config set --json channels.discord "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$DISCORD_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 elif [ "$PLATFORM" = "whatsapp" ]; then
-  node openclaw.mjs config set --json channels.whatsapp "{\"enabled\":true,\"dmPolicy\":\"open\",\"authToken\":\"$WHATSAPP_AUTH_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
+  echo "[clawoop]   Writing WhatsApp config directly to openclaw.json..."
+  CONFIG_FILE="/home/node/.openclaw/openclaw.json"
+  mkdir -p /home/node/.openclaw
+  # If config file exists, add whatsapp channel; otherwise create with defaults
+  if [ -f "$CONFIG_FILE" ]; then
+    # Use node to merge WhatsApp config into existing config
+    node -e "
+      const fs = require('fs');
+      const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
+      cfg.channels = cfg.channels || {};
+      cfg.channels.whatsapp = { enabled: true, dmPolicy: 'open', allowFrom: ['*'] };
+      fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2));
+      console.log('[clawoop]   WhatsApp channel added to config');
+    " 2>&1 || true
+  else
+    echo '{"channels":{"whatsapp":{"enabled":true,"dmPolicy":"open","allowFrom":["*"]}}}' > "$CONFIG_FILE"
+    echo "[clawoop]   Created openclaw.json with WhatsApp config"
+  fi
 else
   node openclaw.mjs config set --json channels.telegram "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$TELEGRAM_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 fi
@@ -326,8 +343,15 @@ fi
 # Step 10: Start the gateway
 update_stage "starting"
 echo "[clawoop] Step 10: Starting gateway..."
-node openclaw.mjs gateway --allow-unconfigured &
-GATEWAY_PID=$!
+if [ "$PLATFORM" = "whatsapp" ]; then
+  # WhatsApp: pipe gateway output through QR watcher to capture QR codes for dashboard
+  echo "[clawoop]   Starting gateway with QR watcher for WhatsApp..."
+  node openclaw.mjs gateway --allow-unconfigured 2>&1 | node /home/node/qr-watcher.mjs &
+  GATEWAY_PID=$!
+else
+  node openclaw.mjs gateway --allow-unconfigured &
+  GATEWAY_PID=$!
+fi
 
 # Step 11: Health check — wait for gateway, then mark as running
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTANCE_ID" ]; then

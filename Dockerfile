@@ -25,5 +25,6 @@ USER node
 COPY entrypoint-patch.sh /home/node/entrypoint-patch.sh
 COPY credit-proxy.mjs /home/node/credit-proxy.mjs
 COPY credential-poller.mjs /home/node/credential-poller.mjs
+COPY qr-watcher.mjs /home/node/qr-watcher.mjs
 
 ENTRYPOINT ["/home/node/entrypoint-patch.sh"]
