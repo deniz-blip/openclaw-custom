@@ -1,10 +1,22 @@
 #!/bin/sh
 set -e
 
+# Helper: update deploy_stage in Supabase (non-blocking, fail-silent)
+update_stage() {
+  if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTANCE_ID" ]; then
+    curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?id=eq.${INSTANCE_ID}" \
+      -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "{\"deploy_stage\": \"$1\"}" > /dev/null 2>&1 || true
+  fi
+}
+
 echo "[clawoop] === Custom OpenClaw Entrypoint ==="
 echo "[clawoop] Platform: ${PLATFORM:-telegram}"
 
 # Step 1: Onboard the correct channel
+update_stage "configuring"
 echo "[clawoop] Step 1: Running openclaw onboard..."
 if [ "$PLATFORM" = "slack" ]; then
   node openclaw.mjs onboard --channel=slack --token="$SLACK_BOT_TOKEN" 2>&1 || true
@@ -33,6 +45,7 @@ if [ -n "$ANTHROPIC_API_KEY" ]; then
 fi
 
 # Step 4: Configure Google OAuth for gog tool (Calendar, Gmail, Drive)
+update_stage "connecting"
 echo "[clawoop] Step 4: Configuring Google services..."
 if [ -n "$GOG_REFRESH_TOKEN" ] && [ -n "$GOOGLE_OAUTH_CLIENT_ID" ]; then
   echo "[clawoop]   Google OAuth token found — setting up gog tool..."
@@ -307,6 +320,7 @@ else
 fi
 
 # Step 10: Start the gateway
+update_stage "starting"
 echo "[clawoop] Step 10: Starting gateway..."
 node openclaw.mjs gateway --allow-unconfigured &
 GATEWAY_PID=$!
@@ -325,11 +339,11 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTA
       # Try to reach the gateway health endpoint (openclaw listens on 3000 by default)
       if curl -sf http://127.0.0.1:3000/health > /dev/null 2>&1 || curl -sf http://127.0.0.1:3000/ > /dev/null 2>&1; then
         echo "[clawoop]   Gateway is healthy — updating status to running"
-        curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?instance_id=eq.${INSTANCE_ID}" \
+        curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?id=eq.${INSTANCE_ID}" \
           -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
           -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
           -H "Content-Type: application/json" \
-          -d '{"status": "running"}' > /dev/null 2>&1
+          -d '{"status": "running", "deploy_stage": "ready"}' > /dev/null 2>&1
         echo "[clawoop]   Status updated to running ✓"
         break
       fi
