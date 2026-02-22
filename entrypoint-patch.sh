@@ -50,18 +50,24 @@ if [ -n "$GOG_REFRESH_TOKEN" ] && [ -n "$GOOGLE_OAUTH_CLIENT_ID" ]; then
 }
 CRED_EOF
 
-  # Configure gogcli to use file-based keyring (works in containers)
+  # Configure gog CLI to use file-based keyring (works in containers)
   export GOG_KEYRING_BACKEND="${GOG_KEYRING_BACKEND:-file}"
   export GOG_KEYRING_PASSWORD="${GOG_KEYRING_PASSWORD:-clawoop-default}"
+  export GOG_ACCOUNT="${GOG_CONNECTED_EMAIL}"
 
-  # Load credentials into gogcli
-  if command -v gogcli >/dev/null 2>&1; then
-    gogcli load-credentials /home/node/google-credentials.json 2>&1 || true
-    # Inject the refresh token directly
-    gogcli set-token --refresh-token="$GOG_REFRESH_TOKEN" 2>&1 || true
-    echo "[clawoop]   gogcli configured with user's Google token"
+  # Load credentials into gog CLI
+  if command -v gog >/dev/null 2>&1; then
+    # Set keyring backend to file (no system keychain in containers)
+    gog auth keyring file 2>&1 || true
+    # Store OAuth client credentials
+    gog auth credentials /home/node/google-credentials.json 2>&1 || true
+    # Import the refresh token directly (no browser needed)
+    if [ -n "$GOG_CONNECTED_EMAIL" ]; then
+      echo "$GOG_REFRESH_TOKEN" | gog auth tokens import "$GOG_CONNECTED_EMAIL" 2>&1 || true
+    fi
+    echo "[clawoop]   gog CLI configured with user's Google token"
   else
-    echo "[clawoop]   gogcli not found — setting env vars for gog tool"
+    echo "[clawoop]   gog not found — setting env vars for gog tool"
   fi
 
   # Enable Google tools in OpenClaw config
