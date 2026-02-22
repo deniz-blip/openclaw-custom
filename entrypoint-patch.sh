@@ -128,10 +128,56 @@ if [ -n "$HA_URL" ] && [ -n "$HA_TOKEN" ]; then
   echo "[clawoop]   Home Assistant configured"
 fi
 
-# Step 5: Run openclaw doctor --fix to apply any remaining fixes
-echo "[clawoop] Step 5: Running doctor --fix..."
+# Step 5: Configure JIT Authorization System Prompt
+echo "[clawoop] Step 5: Configuring JIT authorization prompt..."
+
+# Build list of connected services
+CONNECTED_SERVICES=""
+[ -n "$GOG_REFRESH_TOKEN" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Google Workspace (Calendar, Gmail, Drive), "
+[ -n "$NOTION_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Notion, "
+[ -n "$GITHUB_TOKEN" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}GitHub, "
+[ -n "$SPOTIFY_CLIENT_ID" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Spotify, "
+[ -n "$TRELLO_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Trello, "
+[ -n "$X_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Twitter/X, "
+[ -n "$HA_URL" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Home Assistant, "
+
+# Remove trailing comma
+CONNECTED_SERVICES=$(echo "$CONNECTED_SERVICES" | sed 's/, $//')
+
+if [ -z "$CONNECTED_SERVICES" ]; then
+  CONNECTED_SERVICES="None connected yet"
+fi
+
+# Write system prompt addition to a file the bot can read
+cat > /home/node/.openclaw/jit-prompt.md <<PROMPT_EOF
+## Connected Services
+The user has connected these services: ${CONNECTED_SERVICES}.
+
+## Service Connection Guide
+If the user asks you to do something that requires a service they haven't connected, politely tell them:
+- What service is needed
+- Send them this link to connect it: https://clawoop.com?connect=SERVICE_ID
+
+Use these exact service IDs in the link:
+- google (Google Calendar, Gmail, Drive)
+- notion (Notion pages and databases)
+- github (GitHub repos, issues, PRs)
+- spotify (Music playback and playlists)
+- trello (Kanban boards and tasks)
+- twitter (Post tweets, reply, search)
+- homeassistant (Smart home control)
+
+Example: "To manage your calendar, you'll need to connect Google Workspace first. Click here to connect: https://clawoop.com?connect=google"
+
+Do NOT attempt to use a service that isn't connected — always guide the user to connect it first.
+PROMPT_EOF
+
+echo "[clawoop]   JIT prompt configured. Connected: ${CONNECTED_SERVICES}"
+
+# Step 6: Run openclaw doctor --fix to apply any remaining fixes
+echo "[clawoop] Step 6: Running doctor --fix..."
 node openclaw.mjs doctor --fix 2>&1 || true
 
-# Step 6: Start the gateway
-echo "[clawoop] Step 6: Starting gateway..."
+# Step 7: Start the gateway
+echo "[clawoop] Step 7: Starting gateway..."
 exec node openclaw.mjs gateway --allow-unconfigured
