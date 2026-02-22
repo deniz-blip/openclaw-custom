@@ -128,56 +128,87 @@ if [ -n "$HA_URL" ] && [ -n "$HA_TOKEN" ]; then
   echo "[clawoop]   Home Assistant configured"
 fi
 
-# Step 5: Configure JIT Authorization System Prompt
-echo "[clawoop] Step 5: Configuring JIT authorization prompt..."
+# Step 5: Enable service-specific tools
+echo "[clawoop] Step 5: Enabling service tools..."
 
-# Build list of connected services
-CONNECTED_SERVICES=""
-[ -n "$GOG_REFRESH_TOKEN" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Google Workspace (Calendar, Gmail, Drive), "
-[ -n "$NOTION_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Notion, "
-[ -n "$GITHUB_TOKEN" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}GitHub, "
-[ -n "$SPOTIFY_CLIENT_ID" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Spotify, "
-[ -n "$TRELLO_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Trello, "
-[ -n "$X_API_KEY" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Twitter/X, "
-[ -n "$HA_URL" ] && CONNECTED_SERVICES="${CONNECTED_SERVICES}Home Assistant, "
-
-# Remove trailing comma
-CONNECTED_SERVICES=$(echo "$CONNECTED_SERVICES" | sed 's/, $//')
-
-if [ -z "$CONNECTED_SERVICES" ]; then
-  CONNECTED_SERVICES="None connected yet"
+if [ -n "$NOTION_API_KEY" ]; then
+  echo "[clawoop]   Enabling Notion tool..."
+  node openclaw.mjs config set --json tools.notion '{"enabled":true}' 2>&1 || true
 fi
 
-# Write system prompt addition to a file the bot can read
-cat > /home/node/.openclaw/jit-prompt.md <<PROMPT_EOF
-## Connected Services
-The user has connected these services: ${CONNECTED_SERVICES}.
+if [ -n "$GITHUB_TOKEN" ]; then
+  echo "[clawoop]   Enabling GitHub tool..."
+  node openclaw.mjs config set --json tools.github '{"enabled":true}' 2>&1 || true
+fi
 
-## Service Connection Guide
-If the user asks you to do something that requires a service they haven't connected, politely tell them:
-- What service is needed
-- Send them this link to connect it: https://clawoop.com?connect=SERVICE_ID
+if [ -n "$TRELLO_API_KEY" ]; then
+  echo "[clawoop]   Enabling Trello tool..."
+  node openclaw.mjs config set --json tools.trello '{"enabled":true}' 2>&1 || true
+fi
 
-Use these exact service IDs in the link:
-- google (Google Calendar, Gmail, Drive)
-- notion (Notion pages and databases)
-- github (GitHub repos, issues, PRs)
-- spotify (Music playback and playlists)
-- trello (Kanban boards and tasks)
-- twitter (Post tweets, reply, search)
-- homeassistant (Smart home control)
+# Step 6: Build and inject JIT system prompt
+echo "[clawoop] Step 6: Configuring JIT system prompt..."
 
-Example: "To manage your calendar, you'll need to connect Google Workspace first. Click here to connect: https://clawoop.com?connect=google"
+# Build list of connected services with capabilities
+CONNECTED_BLOCK=""
+[ -n "$GOG_REFRESH_TOKEN" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Google Workspace**: Calendar (list/create/update events), Gmail (read/send emails), Drive (list/search files). Use the gog tool."
+[ -n "$NOTION_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Notion**: Create pages, query databases, search workspace. Use the notion tool."
+[ -n "$GITHUB_TOKEN" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **GitHub**: List repos, create/list issues, manage PRs. Use the github tool."
+[ -n "$SPOTIFY_CLIENT_ID" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Spotify**: Control playback, search music, manage playlists. Use curl/fetch with the Spotify Web API and the stored credentials."
+[ -n "$TRELLO_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Trello**: List boards, create/move cards, manage lists. Use the trello tool."
+[ -n "$X_API_KEY" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Twitter/X**: Post tweets, search, manage timeline. Use curl with the X API v2 and the stored credentials."
+[ -n "$HA_URL" ] && CONNECTED_BLOCK="${CONNECTED_BLOCK}
+- **Home Assistant**: Control lights, switches, climate, and other smart home devices. Use curl with the HA REST API at ${HA_URL}."
 
-Do NOT attempt to use a service that isn't connected — always guide the user to connect it first.
-PROMPT_EOF
+# Build list of unconnected services
+UNCONNECTED_BLOCK=""
+[ -z "$GOG_REFRESH_TOKEN" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Google Workspace → https://clawoop.com?connect=google"
+[ -z "$NOTION_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Notion → https://clawoop.com?connect=notion"
+[ -z "$GITHUB_TOKEN" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- GitHub → https://clawoop.com?connect=github"
+[ -z "$SPOTIFY_CLIENT_ID" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Spotify → https://clawoop.com?connect=spotify"
+[ -z "$TRELLO_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Trello → https://clawoop.com?connect=trello"
+[ -z "$X_API_KEY" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Twitter/X → https://clawoop.com?connect=twitter"
+[ -z "$HA_URL" ] && UNCONNECTED_BLOCK="${UNCONNECTED_BLOCK}
+- Home Assistant → https://clawoop.com?connect=homeassistant"
 
-echo "[clawoop]   JIT prompt configured. Connected: ${CONNECTED_SERVICES}"
+# Build the full system prompt
+SYSTEM_PROMPT="You are a helpful AI assistant managed by ClawOop. You can chat naturally and also perform real actions through connected services.
 
-# Step 6: Run openclaw doctor --fix to apply any remaining fixes
-echo "[clawoop] Step 6: Running doctor --fix..."
+## Connected Services (ready to use)
+${CONNECTED_BLOCK:-No services connected yet.}
+
+## Services Not Yet Connected
+If the user asks for something that needs one of these, tell them which service is needed and share the connection link:
+${UNCONNECTED_BLOCK:-All services are connected!}
+
+## Rules
+- For connected services, take action directly when asked. Don't ask for confirmation unless the action is destructive.
+- For unconnected services, explain what's needed and share the exact connection link.
+- Never fabricate data. If a tool call fails, tell the user honestly.
+- Be concise and helpful."
+
+# Inject into OpenClaw config
+node openclaw.mjs config set ai.systemPrompt "$SYSTEM_PROMPT" 2>&1 || true
+
+echo "[clawoop]   System prompt configured."
+
+# Step 7: Run openclaw doctor --fix to apply any remaining fixes
+echo "[clawoop] Step 7: Running doctor --fix..."
 node openclaw.mjs doctor --fix 2>&1 || true
 
-# Step 7: Start the gateway
-echo "[clawoop] Step 7: Starting gateway..."
+# Step 8: Start the gateway
+echo "[clawoop] Step 8: Starting gateway..."
 exec node openclaw.mjs gateway --allow-unconfigured
+
