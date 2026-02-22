@@ -227,4 +227,35 @@ fi
 
 # Step 9: Start the gateway
 echo "[clawoop] Step 9: Starting gateway..."
-exec node openclaw.mjs gateway --allow-unconfigured
+node openclaw.mjs gateway --allow-unconfigured &
+GATEWAY_PID=$!
+
+# Step 10: Health check — wait for gateway, then mark as running
+if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTANCE_ID" ]; then
+  (
+    echo "[clawoop] Step 10: Waiting for gateway to become healthy..."
+    for i in $(seq 1 60); do
+      sleep 5
+      # Check if gateway process is still alive
+      if ! kill -0 $GATEWAY_PID 2>/dev/null; then
+        echo "[clawoop]   Gateway process died — skipping health callback"
+        break
+      fi
+      # Try to reach the gateway health endpoint (openclaw listens on 3000 by default)
+      if curl -sf http://127.0.0.1:3000/health > /dev/null 2>&1 || curl -sf http://127.0.0.1:3000/ > /dev/null 2>&1; then
+        echo "[clawoop]   Gateway is healthy — updating status to running"
+        curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?instance_id=eq.${INSTANCE_ID}" \
+          -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+          -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+          -H "Content-Type: application/json" \
+          -d '{"status": "running"}' > /dev/null 2>&1
+        echo "[clawoop]   Status updated to running ✓"
+        break
+      fi
+      echo "[clawoop]   Attempt $i/60 — gateway not ready yet..."
+    done
+  ) &
+fi
+
+# Wait for gateway to exit
+wait $GATEWAY_PID
