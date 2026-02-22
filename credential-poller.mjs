@@ -213,6 +213,35 @@ function applyConfigUpdate(serviceTokens) {
         }
     }
 
+    // 2b. Hot-reload gog keyring when Google credentials change
+    if (envVars.GOG_REFRESH_TOKEN && envVars.GOG_CONNECTED_EMAIL) {
+        try {
+            // Write fresh OAuth client credentials JSON
+            const credJson = JSON.stringify({
+                installed: {
+                    client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+                    client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+                    redirect_uris: ['urn:ietf:wg:oauth:2.0:oob'],
+                    auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+                    token_uri: 'https://oauth2.googleapis.com/token',
+                },
+            });
+            writeFileSync('/home/node/google-credentials.json', credJson);
+
+            // Reload credentials and import token into gog keyring
+            execSync('gog auth credentials /home/node/google-credentials.json', {
+                cwd: '/home/node', stdio: 'pipe', timeout: 5000,
+            });
+            execSync(`echo "${envVars.GOG_REFRESH_TOKEN}" | gog auth tokens import "${envVars.GOG_CONNECTED_EMAIL}"`, {
+                cwd: '/home/node', stdio: 'pipe', timeout: 5000,
+                env: { ...process.env, GOG_KEYRING_BACKEND: 'file', GOG_KEYRING_PASSWORD: process.env.GOG_KEYRING_PASSWORD || 'clawoop-default' },
+            });
+            console.log('[credential-poller] gog keyring updated for:', envVars.GOG_CONNECTED_EMAIL);
+        } catch (e) {
+            console.warn('[credential-poller] gog keyring update failed (non-critical):', e.message);
+        }
+    }
+
     // 3. Update SOUL.md workspace file (OpenClaw reads this, not ai.systemPrompt)
     const prompt = buildSystemPrompt(serviceTokens);
     try {
