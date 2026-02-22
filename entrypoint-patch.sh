@@ -197,7 +197,8 @@ ${UNCONNECTED_BLOCK:-All services are connected!}
 - For connected services, take action directly when asked. Don't ask for confirmation unless the action is destructive.
 - For unconnected services, explain what's needed and share the exact connection link.
 - Never fabricate data. If a tool call fails, tell the user honestly.
-- Be concise and helpful."
+- Be concise and helpful.
+- If an AI request fails with a credit_exceeded or rate_limit error, tell the user: 'Aylık AI krediniz doldu. Bir sonraki faturalama döneminde yenilenecektir.' Do not retry."
 
 # Inject into OpenClaw config
 node openclaw.mjs config set ai.systemPrompt "$SYSTEM_PROMPT" 2>&1 || true
@@ -208,7 +209,22 @@ echo "[clawoop]   System prompt configured."
 echo "[clawoop] Step 7: Running doctor --fix..."
 node openclaw.mjs doctor --fix 2>&1 || true
 
-# Step 8: Start the gateway
-echo "[clawoop] Step 8: Starting gateway..."
-exec node openclaw.mjs gateway --allow-unconfigured
+# Step 8: Start credit proxy (if Supabase creds available)
+echo "[clawoop] Step 8: Starting credit proxy..."
+if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_ID" ]; then
+  node /home/node/credit-proxy.mjs &
+  PROXY_PID=$!
+  sleep 1
+  echo "[clawoop]   Credit proxy started (PID: $PROXY_PID)"
 
+  # Override AI provider base URL to route through proxy
+  export ANTHROPIC_BASE_URL="http://127.0.0.1:4100"
+  export OPENAI_BASE_URL="http://127.0.0.1:4100"
+  echo "[clawoop]   AI requests routed through credit proxy"
+else
+  echo "[clawoop]   Supabase creds missing — credit proxy skipped (no cap enforced)"
+fi
+
+# Step 9: Start the gateway
+echo "[clawoop] Step 9: Starting gateway..."
+exec node openclaw.mjs gateway --allow-unconfigured
