@@ -22,6 +22,8 @@ if [ "$PLATFORM" = "slack" ]; then
   node openclaw.mjs onboard --channel=slack --token="$SLACK_BOT_TOKEN" 2>&1 || true
 elif [ "$PLATFORM" = "discord" ]; then
   node openclaw.mjs onboard --channel=discord --token="$DISCORD_BOT_TOKEN" 2>&1 || true
+elif [ "$PLATFORM" = "whatsapp" ]; then
+  node openclaw.mjs onboard --channel=whatsapp --token="$WHATSAPP_AUTH_TOKEN" 2>&1 || true
 else
   node openclaw.mjs onboard --channel=telegram --token="$TELEGRAM_BOT_TOKEN" 2>&1 || true
 fi
@@ -32,6 +34,8 @@ if [ "$PLATFORM" = "slack" ]; then
   node openclaw.mjs config set --json channels.slack "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$SLACK_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 elif [ "$PLATFORM" = "discord" ]; then
   node openclaw.mjs config set --json channels.discord "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$DISCORD_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
+elif [ "$PLATFORM" = "whatsapp" ]; then
+  node openclaw.mjs config set --json channels.whatsapp "{\"enabled\":true,\"dmPolicy\":\"open\",\"authToken\":\"$WHATSAPP_AUTH_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 else
   node openclaw.mjs config set --json channels.telegram "{\"enabled\":true,\"dmPolicy\":\"open\",\"botToken\":\"$TELEGRAM_BOT_TOKEN\",\"allowFrom\":[\"*\"]}" 2>&1 || true
 fi
