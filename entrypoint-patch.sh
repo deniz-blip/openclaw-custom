@@ -347,9 +347,9 @@ fi
 update_stage "starting"
 echo "[clawoop] Step 10: Starting gateway..."
 if [ "$PLATFORM" = "whatsapp" ]; then
-  # WhatsApp: pipe gateway output through QR watcher to capture QR codes for dashboard
-  echo "[clawoop]   Starting gateway with QR watcher for WhatsApp..."
-  node openclaw.mjs gateway --allow-unconfigured 2>&1 | node /home/node/qr-watcher.mjs &
+  # WhatsApp uses Business API bridge — no native channel, just HTTP API
+  echo "[clawoop]   Starting gateway with HTTP API for WhatsApp bridge..."
+  node openclaw.mjs gateway --allow-unconfigured &
   GATEWAY_PID=$!
 else
   node openclaw.mjs gateway --allow-unconfigured &
