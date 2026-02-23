@@ -39,6 +39,8 @@ const UPSTREAM = {
     anthropic: 'https://api.anthropic.com',
     openai: 'https://api.openai.com',
     google: 'https://generativelanguage.googleapis.com',
+    xai: 'https://api.x.ai',
+    deepseek: 'https://api.deepseek.com',
 };
 
 function getUpstreamUrl(provider) {
@@ -129,7 +131,7 @@ function extractUsage(provider, responseBody) {
                 tokensIn: data.usage?.input_tokens || 0,
                 tokensOut: data.usage?.output_tokens || 0,
             };
-        } else if (provider === 'openai') {
+        } else if (provider === 'openai' || provider === 'xai' || provider === 'deepseek') {
             return {
                 tokensIn: data.usage?.prompt_tokens || 0,
                 tokensOut: data.usage?.completion_tokens || 0,

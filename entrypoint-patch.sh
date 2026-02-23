@@ -62,10 +62,27 @@ fi
 
 # Step 3: Also set the AI provider config
 echo "[clawoop] Step 3: Setting AI provider config..."
-if [ -n "$ANTHROPIC_API_KEY" ]; then
-  node openclaw.mjs config set ai.provider "${AI_PROVIDER:-anthropic}" 2>&1 || true
-  node openclaw.mjs config set ai.model "${AI_MODEL:-claude-opus-4-20250514}" 2>&1 || true
+echo "[clawoop]   Provider: ${AI_PROVIDER:-anthropic}, Model: ${AI_MODEL:-claude-opus-4-20250514}"
+node openclaw.mjs config set ai.provider "${AI_PROVIDER:-anthropic}" 2>&1 || true
+node openclaw.mjs config set ai.model "${AI_MODEL:-claude-opus-4-20250514}" 2>&1 || true
+
+if [ "$AI_PROVIDER" = "openai" ] && [ -n "$OPENAI_API_KEY" ]; then
+  node openclaw.mjs config set --json ai.credentials "{\"openaiApiKey\":\"$OPENAI_API_KEY\"}" 2>&1 || true
+  echo "[clawoop]   OpenAI credentials set ✓"
+elif [ "$AI_PROVIDER" = "google" ] && [ -n "$GOOGLE_API_KEY" ]; then
+  node openclaw.mjs config set --json ai.credentials "{\"googleApiKey\":\"$GOOGLE_API_KEY\"}" 2>&1 || true
+  echo "[clawoop]   Google credentials set ✓"
+elif [ "$AI_PROVIDER" = "xai" ] && [ -n "$XAI_API_KEY" ]; then
+  node openclaw.mjs config set --json ai.credentials "{\"xaiApiKey\":\"$XAI_API_KEY\"}" 2>&1 || true
+  echo "[clawoop]   xAI credentials set ✓"
+elif [ "$AI_PROVIDER" = "deepseek" ] && [ -n "$DEEPSEEK_API_KEY" ]; then
+  node openclaw.mjs config set --json ai.credentials "{\"deepseekApiKey\":\"$DEEPSEEK_API_KEY\"}" 2>&1 || true
+  echo "[clawoop]   DeepSeek credentials set ✓"
+elif [ -n "$ANTHROPIC_API_KEY" ]; then
   node openclaw.mjs config set --json ai.credentials "{\"anthropicApiKey\":\"$ANTHROPIC_API_KEY\"}" 2>&1 || true
+  echo "[clawoop]   Anthropic credentials set ✓"
+else
+  echo "[clawoop]   WARNING: No API key found for provider ${AI_PROVIDER:-anthropic}"
 fi
 
 # Step 4: Configure Google OAuth for gog tool (Calendar, Gmail, Drive)
@@ -328,6 +345,8 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_
   # Override AI provider base URL to route through proxy
   export ANTHROPIC_BASE_URL="http://127.0.0.1:4100"
   export OPENAI_BASE_URL="http://127.0.0.1:4100"
+  export XAI_BASE_URL="http://127.0.0.1:4100"
+  export DEEPSEEK_BASE_URL="http://127.0.0.1:4100"
   echo "[clawoop]   AI requests routed through credit proxy"
 else
   echo "[clawoop]   Supabase creds missing — credit proxy skipped (no cap enforced)"
