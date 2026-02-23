@@ -375,8 +375,8 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
     ) &
   fi
 
-  # Wait for gateway to exit
-  wait $GATEWAY_PID
+  # Wait for gateway to exit (|| true prevents set -e from killing the script)
+  wait $GATEWAY_PID || true
   EXIT_CODE=$?
   echo "[clawoop]   Gateway exited with code $EXIT_CODE"
 
