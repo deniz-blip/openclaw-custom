@@ -285,7 +285,7 @@ async function poll() {
 
         if (hash !== lastHash) {
             console.log('[credential-poller] Credential change detected! Providers:', creds.map(c => c.provider).join(', ') || 'none');
-            applyConfigUpdate(creds);
+            await applyConfigUpdate(creds);
             lastHash = hash;
             writeFileSync(STATE_FILE, hash);
             console.log('[credential-poller] Config hot-reloaded ✓ (no restart needed)');
@@ -295,8 +295,110 @@ async function poll() {
     }
 }
 
-// Initial poll
+// ─── Live Skills Sync ────────────────────────────────────────
+// Fetches latest skills from GitHub so existing containers
+// pick up new services without redeploy.
+// Safety: if fetch fails, baked-in skills remain untouched.
+
+const SKILLS_REPO = 'denizozzgur/openclaw-custom';
+const SKILLS_BRANCH = 'main';
+const SKILLS_DIR = '/home/node/.openclaw/skills';
+const SKILLS_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let lastSkillsSyncHash = '';
+
+async function syncSkills() {
+    try {
+        // 1. Fetch directory listing from GitHub API
+        const listUrl = `https://api.github.com/repos/${SKILLS_REPO}/contents/skills?ref=${SKILLS_BRANCH}`;
+        const listRes = await fetch(listUrl, {
+            headers: { 'User-Agent': 'clawoop-poller' },
+        });
+
+        if (!listRes.ok) {
+            // Don't log on rate limit (expected for unauthenticated requests)
+            if (listRes.status !== 403) {
+                console.warn('[skills-sync] GitHub API error:', listRes.status);
+            }
+            return;
+        }
+
+        const entries = await listRes.json();
+        if (!Array.isArray(entries)) return;
+
+        const skillDirs = entries.filter(e => e.type === 'dir');
+
+        // 2. Quick hash check — skip if nothing changed
+        const dirHash = createHash('sha256')
+            .update(skillDirs.map(d => `${d.name}:${d.sha}`).join(','))
+            .digest('hex');
+
+        if (dirHash === lastSkillsSyncHash) return; // no changes
+
+        console.log(`[skills-sync] Change detected — syncing ${skillDirs.length} skill(s)...`);
+
+        let synced = 0;
+        let skipped = 0;
+
+        for (const dir of skillDirs) {
+            try {
+                // 3. Fetch SKILL.md raw content
+                const rawUrl = `https://raw.githubusercontent.com/${SKILLS_REPO}/${SKILLS_BRANCH}/skills/${dir.name}/SKILL.md`;
+                const rawRes = await fetch(rawUrl, {
+                    headers: { 'User-Agent': 'clawoop-poller' },
+                });
+
+                if (!rawRes.ok) {
+                    skipped++;
+                    continue;
+                }
+
+                const content = await rawRes.text();
+
+                // 4. Validate content (safety check)
+                if (!content || content.length < 50 || !content.startsWith('---')) {
+                    console.warn(`[skills-sync] Invalid content for ${dir.name} — skipping`);
+                    skipped++;
+                    continue;
+                }
+
+                // 5. Only write if different from what's on disk
+                const skillPath = `${SKILLS_DIR}/${dir.name}/SKILL.md`;
+                let existingContent = '';
+                try {
+                    existingContent = readFileSync(skillPath, 'utf-8');
+                } catch {
+                    // File doesn't exist yet — that's fine
+                }
+
+                if (content !== existingContent) {
+                    const { mkdirSync } = await import('fs');
+                    mkdirSync(`${SKILLS_DIR}/${dir.name}`, { recursive: true });
+                    writeFileSync(skillPath, content);
+                    console.log(`[skills-sync]   ✓ ${dir.name} updated`);
+                    synced++;
+                }
+            } catch (e) {
+                // Per-skill error — skip this skill, continue with others
+                console.warn(`[skills-sync] Error syncing ${dir.name}:`, e.message);
+                skipped++;
+            }
+        }
+
+        lastSkillsSyncHash = dirHash;
+
+        if (synced > 0) {
+            console.log(`[skills-sync] Done — ${synced} updated, ${skipped} skipped. OpenClaw skills watcher will pick them up.`);
+        }
+    } catch (e) {
+        // Non-fatal: skills sync is best-effort
+        console.warn('[skills-sync] Sync failed (non-critical):', e.message);
+    }
+}
+
+// Initial polls
 await poll();
+await syncSkills();
 
 // Schedule recurring polls
 setInterval(poll, POLL_INTERVAL);
+setInterval(syncSkills, SKILLS_SYNC_INTERVAL);
