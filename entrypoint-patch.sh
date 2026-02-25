@@ -295,6 +295,20 @@ ls -la "$WORKSPACE/" 2>/dev/null || echo "   (workspace dir not found)"
 echo "[clawoop]   SOUL.md preview:"
 cat "$WORKSPACE/SOUL.md" 2>/dev/null | head -5 || echo "   (SOUL.md not found)"
 
+# Step 7b: Deploy service skills
+echo "[clawoop] Step 7b: Deploying service skills..."
+SKILLS_SRC="/home/node/skills"
+SKILLS_DST="/home/node/.openclaw/skills"
+if [ -d "$SKILLS_SRC" ]; then
+  mkdir -p "$SKILLS_DST"
+  cp -r "$SKILLS_SRC"/* "$SKILLS_DST/" 2>/dev/null || true
+  SKILL_COUNT=$(ls -d "$SKILLS_DST"/*/ 2>/dev/null | wc -l)
+  echo "[clawoop]   Deployed $SKILL_COUNT skill(s) to $SKILLS_DST"
+  ls -d "$SKILLS_DST"/*/ 2>/dev/null | xargs -I{} basename {} | while read s; do echo "[clawoop]     - $s"; done
+else
+  echo "[clawoop]   No skills directory found at $SKILLS_SRC — skipping"
+fi
+
 # Step 8: Start credit proxy (if Supabase creds available)
 echo "[clawoop] Step 8: Starting credit proxy..."
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_ID" ]; then
