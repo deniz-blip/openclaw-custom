@@ -188,9 +188,8 @@ echo "[clawoop] Step 5: Service tools configured via env vars..."
 echo "[clawoop]   NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET} TRELLO_API_KEY=${TRELLO_API_KEY:+SET}"
 echo "[clawoop]   Tools ready ✓"
 
-# Step 5b: Run openclaw doctor --fix
-echo "[clawoop] Step 5b: Running doctor --fix..."
-node openclaw.mjs doctor --fix 2>&1 || true
+# Step 5b: Removed — openclaw doctor --fix is no longer needed
+# (all invalid config keys have been cleaned up)
 
 # Step 6: Write OpenClaw workspace files (IDENTITY.md, SOUL.md, TOOLS.md)
 # OpenClaw builds its system prompt from these files — NOT from ai.systemPrompt
@@ -365,10 +364,10 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
   # Health check — wait for gateway process to stabilize, then mark as running
   if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$INSTANCE_ID" ]; then
     (
-      # Give gateway 20s to start and stabilize
-      sleep 20
+      # Give gateway 8s to start and stabilize
+      sleep 8
       if kill -0 $GATEWAY_PID 2>/dev/null; then
-        echo "[clawoop]   Gateway process alive after 20s — marking as running"
+        echo "[clawoop]   Gateway process alive after 8s — marking as running"
         curl -sf -X PATCH "${SUPABASE_URL}/rest/v1/deployments?id=eq.${INSTANCE_ID}" \
           -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
           -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
