@@ -314,47 +314,15 @@ echo "[clawoop] Step 8: Starting credit proxy..."
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_ID" ]; then
   node /home/node/credit-proxy.mjs &
   PROXY_PID=$!
-  sleep 2
+  sleep 1
+  echo "[clawoop]   Credit proxy started (PID: $PROXY_PID)"
 
-  # Safety: verify proxy is actually responding before routing traffic through it
-  if curl -sf http://127.0.0.1:4100/health > /dev/null 2>&1; then
-    echo "[clawoop]   Credit proxy started and healthy (PID: $PROXY_PID)"
-
-    # Write provider override to openclaw.json so gateway routes through proxy
-    # OpenClaw reads baseUrl from models.providers, NOT from env vars
-    OPENCLAW_CONFIG="/home/node/.openclaw/openclaw.json"
-    mkdir -p /home/node/.openclaw
-
-    # Detect provider and set the correct API format
-    AI_PROVIDER="${AI_PROVIDER:-anthropic}"
-    case "$AI_PROVIDER" in
-      anthropic) API_FORMAT="anthropic-messages" ;;
-      openai)    API_FORMAT="openai-completions" ;;
-      google)    API_FORMAT="google-generative-ai" ;;
-      *)         API_FORMAT="openai-completions" ;;
-    esac
-
-    # Write openclaw.json with proxy base URL (always fresh — proxy only needs baseUrl + api)
-    cat > "$OPENCLAW_CONFIG" << PROXYEOF
-{
-  "models": {
-    "mode": "merge",
-    "providers": {
-      "$AI_PROVIDER": {
-        "baseUrl": "http://127.0.0.1:4100",
-        "api": "$API_FORMAT"
-      }
-    }
-  }
-}
-PROXYEOF
-    echo "[clawoop]   Created openclaw.json — routing $AI_PROVIDER through proxy"
-
-    echo "[clawoop]   AI requests will route through credit proxy (http://127.0.0.1:4100)"
-  else
-    echo "[clawoop]   ⚠ Credit proxy failed health check — AI requests go directly to provider (no usage tracking)"
-    kill $PROXY_PID 2>/dev/null || true
-  fi
+  # Override AI provider base URL to route through proxy
+  export ANTHROPIC_BASE_URL="http://127.0.0.1:4100"
+  export OPENAI_BASE_URL="http://127.0.0.1:4100"
+  export XAI_BASE_URL="http://127.0.0.1:4100"
+  export DEEPSEEK_BASE_URL="http://127.0.0.1:4100"
+  echo "[clawoop]   AI requests routed through credit proxy"
 else
   echo "[clawoop]   Supabase creds missing — credit proxy skipped (no cap enforced)"
 fi
