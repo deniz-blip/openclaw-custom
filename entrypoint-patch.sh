@@ -18,14 +18,10 @@ echo "[clawoop] Platform: ${PLATFORM:-telegram}"
 # Step 1: Onboard the correct channel
 update_stage "configuring"
 echo "[clawoop] Step 1: Running openclaw onboard..."
-if [ "$PLATFORM" = "slack" ]; then
-  node openclaw.mjs onboard slack --token="$SLACK_BOT_TOKEN" 2>&1 || true
-elif [ "$PLATFORM" = "discord" ]; then
-  node openclaw.mjs onboard discord --token="$DISCORD_BOT_TOKEN" 2>&1 || true
-elif [ "$PLATFORM" = "whatsapp" ]; then
+if [ "$PLATFORM" = "whatsapp" ]; then
   echo "[clawoop]   WhatsApp uses QR pairing — skipping onboard, will login during gateway start"
 else
-  node openclaw.mjs onboard telegram --token="$TELEGRAM_BOT_TOKEN" 2>&1 || true
+  node openclaw.mjs onboard 2>&1 || true
 fi
 
 # Step 2: Set channel config with dmPolicy=open via CLI
