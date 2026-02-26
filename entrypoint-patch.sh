@@ -334,28 +334,8 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_
       *)         API_FORMAT="openai-completions" ;;
     esac
 
-    # If config already exists, merge; otherwise create fresh
-    if [ -f "$OPENCLAW_CONFIG" ]; then
-      # Read existing config and add/merge models.providers
-      node -e "
-        const fs = require('fs');
-        const cfg = JSON.parse(fs.readFileSync('$OPENCLAW_CONFIG', 'utf-8'));
-        if (!cfg.models) cfg.models = {};
-        if (!cfg.models.providers) cfg.models.providers = {};
-        cfg.models.mode = 'merge';
-        cfg.models.providers['$AI_PROVIDER'] = {
-          baseUrl: 'http://127.0.0.1:4100',
-          apiKey: process.env['${AI_PROVIDER^^}_API_KEY'] || process.env.ANTHROPIC_API_KEY || 'from-env',
-          api: '$API_FORMAT',
-        };
-        fs.writeFileSync('$OPENCLAW_CONFIG', JSON.stringify(cfg, null, 2));
-        console.log('[clawoop]   Provider override merged into openclaw.json');
-      " 2>/dev/null || echo "[clawoop]   Warning: failed to merge config (will try fresh write)"
-    fi
-
-    # If config still doesn't have our override, write fresh
-    if ! grep -q "127.0.0.1:4100" "$OPENCLAW_CONFIG" 2>/dev/null; then
-      cat > "$OPENCLAW_CONFIG" << PROXYEOF
+    # Write openclaw.json with proxy base URL (always fresh — proxy only needs baseUrl + api)
+    cat > "$OPENCLAW_CONFIG" << PROXYEOF
 {
   "models": {
     "mode": "merge",
@@ -368,8 +348,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$USER_
   }
 }
 PROXYEOF
-      echo "[clawoop]   Created openclaw.json with proxy base URL"
-    fi
+    echo "[clawoop]   Created openclaw.json — routing $AI_PROVIDER through proxy"
 
     echo "[clawoop]   AI requests will route through credit proxy (http://127.0.0.1:4100)"
   else
