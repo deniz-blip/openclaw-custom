@@ -153,11 +153,18 @@ if [ -n "$HA_URL" ] && [ -n "$HA_TOKEN" ]; then
   echo "[clawoop]   Home Assistant configured"
 fi
 
+# Step 4h: Configure Brave Search (web search for all agents)
+if [ -n "$BRAVE_API_KEY" ]; then
+  echo "[clawoop]   Brave Search API key found — enabling brave skill..."
+  echo "BRAVE_API_KEY=$BRAVE_API_KEY" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Brave Search configured"
+fi
+
 # Step 5: Service tools are auto-detected via env vars
 echo "[clawoop] Step 5: Service tools configured via env vars..."
 # Tools (gog, notion, github, trello) are activated via their env vars,
 # not via tools.* config keys. OpenClaw detects them automatically.
-echo "[clawoop]   NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET} TRELLO_API_KEY=${TRELLO_API_KEY:+SET}"
+echo "[clawoop]   NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET} TRELLO_API_KEY=${TRELLO_API_KEY:+SET} BRAVE_API_KEY=${BRAVE_API_KEY:+SET}"
 echo "[clawoop]   Tools ready ✓"
 
 # Step 5b: Removed — openclaw doctor --fix is no longer needed
@@ -171,7 +178,7 @@ WORKSPACE="/home/node/.openclaw/workspace"
 mkdir -p "$WORKSPACE"
 
 # Debug: log which env vars are present
-echo "[clawoop]   ENV CHECK: GOG_REFRESH_TOKEN=${GOG_REFRESH_TOKEN:+SET} NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET}"
+echo "[clawoop]   ENV CHECK: GOG_REFRESH_TOKEN=${GOG_REFRESH_TOKEN:+SET} NOTION_API_KEY=${NOTION_API_KEY:+SET} GITHUB_TOKEN=${GITHUB_TOKEN:+SET} BRAVE_API_KEY=${BRAVE_API_KEY:+SET}"
 
 # 6a: IDENTITY.md — defines who the bot is
 cat > "$WORKSPACE/IDENTITY.md" << 'EOF'
@@ -240,6 +247,14 @@ if [ -n "$HA_URL" ]; then
 else
   UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Home Assistant → https://clawoop.com?connect=homeassistant"
+fi
+
+if [ -n "$BRAVE_API_KEY" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Brave Search**: Web search and browsing. Use the brave skill (curl to api.search.brave.com)."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Brave Search → set BRAVE_API_KEY in backend to enable"
 fi
 
 # 6c: SOUL.md — core personality, rules, and integration awareness
