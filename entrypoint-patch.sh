@@ -167,6 +167,51 @@ if [ -n "$FIGMA_TOKEN" ]; then
   echo "[clawoop]   Figma configured"
 fi
 
+# Step 4j: Configure Linear
+if [ -n "$LINEAR_API_KEY" ]; then
+  echo "[clawoop]   Linear API key found — enabling linear skill..."
+  echo "LINEAR_API_KEY=$LINEAR_API_KEY" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Linear configured"
+fi
+
+# Step 4k: Configure Todoist
+if [ -n "$TODOIST_API_TOKEN" ]; then
+  echo "[clawoop]   Todoist token found — enabling todoist skill..."
+  echo "TODOIST_API_TOKEN=$TODOIST_API_TOKEN" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Todoist configured"
+fi
+
+# Step 4l: Configure Airtable
+if [ -n "$AIRTABLE_PAT" ]; then
+  echo "[clawoop]   Airtable PAT found — enabling airtable skill..."
+  echo "AIRTABLE_PAT=$AIRTABLE_PAT" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Airtable configured"
+fi
+
+# Step 4m: Configure Jira
+if [ -n "$JIRA_BASE_URL" ] && [ -n "$JIRA_EMAIL" ] && [ -n "$JIRA_API_TOKEN" ]; then
+  echo "[clawoop]   Jira credentials found — enabling jira skill..."
+  echo "JIRA_BASE_URL=$JIRA_BASE_URL" >> /home/node/.openclaw/.env
+  echo "JIRA_EMAIL=$JIRA_EMAIL" >> /home/node/.openclaw/.env
+  echo "JIRA_API_TOKEN=$JIRA_API_TOKEN" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Jira configured"
+fi
+
+# Step 4n: Configure HubSpot
+if [ -n "$HUBSPOT_ACCESS_TOKEN" ]; then
+  echo "[clawoop]   HubSpot token found — enabling hubspot skill..."
+  echo "HUBSPOT_ACCESS_TOKEN=$HUBSPOT_ACCESS_TOKEN" >> /home/node/.openclaw/.env
+  echo "[clawoop]   HubSpot configured"
+fi
+
+# Step 4o: Configure Reddit
+if [ -n "$REDDIT_CLIENT_ID" ] && [ -n "$REDDIT_CLIENT_SECRET" ]; then
+  echo "[clawoop]   Reddit credentials found — enabling reddit skill..."
+  echo "REDDIT_CLIENT_ID=$REDDIT_CLIENT_ID" >> /home/node/.openclaw/.env
+  echo "REDDIT_CLIENT_SECRET=$REDDIT_CLIENT_SECRET" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Reddit configured"
+fi
+
 # Step 5: Service tools are auto-detected via env vars
 echo "[clawoop] Step 5: Service tools configured via env vars..."
 # Tools (gog, notion, github, trello) are activated via their env vars,
@@ -270,6 +315,54 @@ if [ -n "$FIGMA_TOKEN" ]; then
 else
   UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Figma → https://clawoop.com?connect=figma"
+fi
+
+if [ -n "$LINEAR_API_KEY" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Linear**: List and manage issues, projects, and team workflows. Use curl with the Linear GraphQL API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Linear → https://clawoop.com?connect=linear"
+fi
+
+if [ -n "$TODOIST_API_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Todoist**: Manage tasks, projects, and reminders. Use curl with the Todoist REST API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Todoist → https://clawoop.com?connect=todoist"
+fi
+
+if [ -n "$AIRTABLE_PAT" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Airtable**: Read, create, update, and delete records in bases and tables. Use curl with the Airtable REST API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Airtable → https://clawoop.com?connect=airtable"
+fi
+
+if [ -n "$JIRA_BASE_URL" ] && [ -n "$JIRA_API_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Jira**: Search, create, and update issues; manage project workflows. Use curl with the Jira REST API at ${JIRA_BASE_URL}."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Jira → https://clawoop.com?connect=jira"
+fi
+
+if [ -n "$HUBSPOT_ACCESS_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **HubSpot**: Manage CRM contacts, companies, and deals. Use curl with the HubSpot API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- HubSpot → https://clawoop.com?connect=hubspot"
+fi
+
+if [ -n "$REDDIT_CLIENT_ID" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Reddit**: Browse and search subreddits, posts, and comments (read-only). Use curl with the Reddit API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Reddit → https://clawoop.com?connect=reddit"
 fi
 
 # 6c: SOUL.md — core personality, rules, and integration awareness

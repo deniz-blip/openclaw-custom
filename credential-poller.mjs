@@ -103,6 +103,31 @@ function buildEnvBlock(serviceTokens) {
             case 'figma':
                 if (svc.access_token_encrypted) envVars.FIGMA_TOKEN = svc.access_token_encrypted;
                 break;
+            case 'linear':
+                if (svc.access_token_encrypted) envVars.LINEAR_API_KEY = svc.access_token_encrypted;
+                break;
+            case 'todoist':
+                if (svc.access_token_encrypted) envVars.TODOIST_API_TOKEN = svc.access_token_encrypted;
+                break;
+            case 'airtable':
+                if (svc.access_token_encrypted) envVars.AIRTABLE_PAT = svc.access_token_encrypted;
+                break;
+            case 'jira':
+                if (svc.credentials_json) {
+                    envVars.JIRA_BASE_URL = svc.credentials_json.JIRA_BASE_URL || '';
+                    envVars.JIRA_EMAIL = svc.credentials_json.JIRA_EMAIL || '';
+                    envVars.JIRA_API_TOKEN = svc.credentials_json.JIRA_API_TOKEN || '';
+                }
+                break;
+            case 'hubspot':
+                if (svc.access_token_encrypted) envVars.HUBSPOT_ACCESS_TOKEN = svc.access_token_encrypted;
+                break;
+            case 'reddit':
+                if (svc.credentials_json) {
+                    envVars.REDDIT_CLIENT_ID = svc.credentials_json.REDDIT_CLIENT_ID || '';
+                    envVars.REDDIT_CLIENT_SECRET = svc.credentials_json.REDDIT_CLIENT_SECRET || '';
+                }
+                break;
         }
     }
 
@@ -128,6 +153,12 @@ function buildSystemPrompt(serviceTokens) {
         twitter: { token: null, label: '**Twitter/X**: Post tweets, search, manage timeline. Use curl with the X API v2 and the stored credentials.' },
         homeassistant: { token: null, label: '**Home Assistant**: Control lights, switches, climate, and other smart home devices. Use curl with the HA REST API.' },
         figma: { token: null, label: '**Figma**: Inspect design files, export assets, list components and styles. Use curl with the Figma REST API.' },
+        linear: { token: null, label: '**Linear**: List and manage issues, projects, and team workflows. Use curl with the Linear GraphQL API.' },
+        todoist: { token: null, label: '**Todoist**: Manage tasks, projects, and reminders. Use curl with the Todoist REST API.' },
+        airtable: { token: null, label: '**Airtable**: Read, create, update, and delete records in bases and tables. Use curl with the Airtable REST API.' },
+        jira: { token: null, label: '**Jira**: Search, create, and update issues; manage project workflows. Use curl with the Jira REST API.' },
+        hubspot: { token: null, label: '**HubSpot**: Manage CRM contacts, companies, and deals. Use curl with the HubSpot API.' },
+        reddit: { token: null, label: '**Reddit**: Browse and search subreddits, posts, and comments (read-only). Use curl with the Reddit API.' },
     };
 
     const connectLinks = {
@@ -139,6 +170,12 @@ function buildSystemPrompt(serviceTokens) {
         twitter: 'https://clawoop.com?connect=twitter',
         homeassistant: 'https://clawoop.com?connect=homeassistant',
         figma: 'https://clawoop.com?connect=figma',
+        linear: 'https://clawoop.com?connect=linear',
+        todoist: 'https://clawoop.com?connect=todoist',
+        airtable: 'https://clawoop.com?connect=airtable',
+        jira: 'https://clawoop.com?connect=jira',
+        hubspot: 'https://clawoop.com?connect=hubspot',
+        reddit: 'https://clawoop.com?connect=reddit',
     };
 
     // Mark connected providers
