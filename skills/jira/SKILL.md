@@ -12,7 +12,7 @@ You have access to the user's Jira instance via the Jira REST API v3.
 Credentials are available as environment variables:
 - `JIRA_BASE_URL` — e.g. `https://yourcompany.atlassian.net`
 - `JIRA_EMAIL` — Atlassian account email
-- `JIRA_API_TOKEN` — API token from id.atlassian.com
+- `JIRA_API_TOKEN` — API token from id.atlassian.com/manage/api-tokens
 
 Authentication uses HTTP Basic auth with `JIRA_EMAIL:JIRA_API_TOKEN` base64-encoded, or pass via curl's `-u` flag.
 
