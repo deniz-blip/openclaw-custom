@@ -100,6 +100,9 @@ function buildEnvBlock(serviceTokens) {
                     envVars.HA_TOKEN = svc.credentials_json.HA_TOKEN || '';
                 }
                 break;
+            case 'figma':
+                if (svc.access_token_encrypted) envVars.FIGMA_TOKEN = svc.access_token_encrypted;
+                break;
         }
     }
 
@@ -124,6 +127,7 @@ function buildSystemPrompt(serviceTokens) {
         trello: { token: null, label: '**Trello**: List boards, create/move cards, manage lists. Use the trello tool.' },
         twitter: { token: null, label: '**Twitter/X**: Post tweets, search, manage timeline. Use curl with the X API v2 and the stored credentials.' },
         homeassistant: { token: null, label: '**Home Assistant**: Control lights, switches, climate, and other smart home devices. Use curl with the HA REST API.' },
+        figma: { token: null, label: '**Figma**: Inspect design files, export assets, list components and styles. Use curl with the Figma REST API.' },
     };
 
     const connectLinks = {
@@ -134,6 +138,7 @@ function buildSystemPrompt(serviceTokens) {
         trello: 'https://clawoop.com?connect=trello',
         twitter: 'https://clawoop.com?connect=twitter',
         homeassistant: 'https://clawoop.com?connect=homeassistant',
+        figma: 'https://clawoop.com?connect=figma',
     };
 
     // Mark connected providers

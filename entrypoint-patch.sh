@@ -160,6 +160,13 @@ if [ -n "$BRAVE_API_KEY" ]; then
   echo "[clawoop]   Brave Search configured"
 fi
 
+# Step 4i: Configure Figma
+if [ -n "$FIGMA_TOKEN" ]; then
+  echo "[clawoop]   Figma token found — enabling figma skill..."
+  echo "FIGMA_TOKEN=$FIGMA_TOKEN" >> /home/node/.openclaw/.env
+  echo "[clawoop]   Figma configured"
+fi
+
 # Step 5: Service tools are auto-detected via env vars
 echo "[clawoop] Step 5: Service tools configured via env vars..."
 # Tools (gog, notion, github, trello) are activated via their env vars,
@@ -255,6 +262,14 @@ if [ -n "$BRAVE_API_KEY" ]; then
 else
   UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
 - Brave Search → set BRAVE_API_KEY in backend to enable"
+fi
+
+if [ -n "$FIGMA_TOKEN" ]; then
+  CONNECTED_SERVICES="${CONNECTED_SERVICES}
+- **Figma**: Inspect design files, export assets, list components and styles. Use curl with the Figma REST API."
+else
+  UNCONNECTED_SERVICES="${UNCONNECTED_SERVICES}
+- Figma → https://clawoop.com?connect=figma"
 fi
 
 # 6c: SOUL.md — core personality, rules, and integration awareness
